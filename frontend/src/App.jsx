@@ -8,7 +8,7 @@ export default function App() {
   const wsRef = useRef(null);
   const pcRef = useRef(null);
 
-  // Initialize particles background
+  // Initialize particles
   const particlesInit = async () => {
     await tsParticles.load("tsparticles", {
       background: { color: { value: "#0f0f0f" } },
@@ -35,7 +35,6 @@ export default function App() {
   };
 
   useEffect(() => {
-    // Connect to backend WebSocket
     const ws = new WebSocket("ws://localhost:3001");
     wsRef.current = ws;
 
@@ -54,7 +53,7 @@ export default function App() {
 
     ws.onopen = async () => {
       console.log("WebSocket connected");
-      pc.createDataChannel("blueproxy"); // optional data channel
+      pc.createDataChannel("blueproxy"); // optional
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
@@ -83,7 +82,11 @@ export default function App() {
   return (
     <div style={{ width: "100vw", height: "100vh", position: "relative" }}>
       {/* Particles background */}
-      <Particles id="tsparticles" init={particlesInit} style={{ position: "absolute", top: 0, left: 0 }} />
+      <Particles
+        id="tsparticles"
+        init={particlesInit}
+        style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}
+      />
 
       {/* WebRTC video */}
       <video
@@ -91,3 +94,17 @@ export default function App() {
         autoPlay
         playsInline
         style={{
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          width: "80%",
+          height: "80%",
+          borderRadius: "12px",
+          boxShadow: "0 0 20px rgba(0,0,0,0.5)",
+          backgroundColor: "#000",
+        }}
+      />
+    </div>
+  );
+}
