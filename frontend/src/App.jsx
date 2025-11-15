@@ -1,4 +1,3 @@
-// frontend/src/App.jsx
 import React, { useState, useEffect, useRef } from "react";
 
 const PROXY_BASE = "http://localhost:8080/r/";
@@ -89,11 +88,11 @@ function App() {
               placeholder="Search DuckDuckGo or input a URL"
               value={inputUrl}
               onChange={(e) => setInputUrl(e.target.value)}
-              className="flex-1 p-3 rounded-l-lg text-black shadow-lg focus:outline-none"
+              className="flex-1 p-3 rounded-l-lg text-black shadow-[0_0_15px_#00f] focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-80 transition-all duration-300"
             />
             <button
               type="submit"
-              className="bg-blue-900 hover:bg-blue-800 text-white font-bold px-4 rounded-r-lg shadow-lg"
+              className="bg-blue-900 hover:bg-blue-800 text-white font-bold px-4 rounded-r-lg shadow-[0_0_20px_#00f] hover:shadow-[0_0_25px_#0ff] transition-all duration-300"
             >
               Go
             </button>
