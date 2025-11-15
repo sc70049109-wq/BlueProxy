@@ -1,8 +1,7 @@
 // backend/server.js
 import express from "express";
 import { WebSocketServer } from "ws";
-import puppeteer from "puppeteer";
-import wrtc from "wrtc"; // ✅ Option 1: default import
+import wrtc from "wrtc";
 
 const { RTCPeerConnection, RTCVideoSource, RTCVideoFrame } = wrtc;
 
@@ -10,72 +9,66 @@ const app = express();
 const HTTP_PORT = 3000;
 const WS_PORT = 3001;
 
-// Serve frontend (optional, if you build frontend later)
-app.use(express.static("../frontend/dist"));
+// Serve static files if needed
+app.use(express.static("../frontend"));
 
-app.get("/", (req, res) => {
-  res.send("BlueProxy WebRTC Backend Running!");
-});
-
+// Start HTTP server
 app.listen(HTTP_PORT, () => {
   console.log(`HTTP server running on http://localhost:${HTTP_PORT}`);
 });
 
-// WebSocket signaling server
-const wss = new WebSocketServer({ port: WS_PORT });
+// Start WebSocket server
+const wss = new WebSocketServer({ port: WS_PORT }, () => {
+  console.log(`WebSocket server running on ws://localhost:${WS_PORT}`);
+});
 
-wss.on("connection", async (ws) => {
+wss.on("connection", (ws) => {
   console.log("Client connected via WebSocket");
 
-  // Launch headless browser
-  const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
-  const page = await browser.newPage();
-  await page.goto("https://example.com"); // page to stream
-
-  // Create WebRTC peer connection
+  // Create PeerConnection
   const pc = new RTCPeerConnection();
+
+  // Create a video source and track
   const videoSource = new RTCVideoSource();
   const track = videoSource.createTrack();
   pc.addTrack(track);
 
-  // Send ICE candidates to frontend
+  // Send ICE candidates to client
   pc.onicecandidate = ({ candidate }) => {
     if (candidate) ws.send(JSON.stringify({ type: "candidate", candidate }));
   };
 
-  ws.on("message", async (msg) => {
-    const data = JSON.parse(msg.toString());
+  // Handle incoming messages from client
+  ws.on("message", async (message) => {
+    const data = JSON.parse(message.toString());
 
     if (data.type === "offer") {
       await pc.setRemoteDescription(data.offer);
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      ws.send(JSON.stringify({ type: "answer", answer: pc.localDescription }));
+      ws.send(JSON.stringify({ type: "answer", answer }));
     }
 
     if (data.type === "candidate") {
       try {
         await pc.addIceCandidate(data.candidate);
-      } catch (e) {
-        console.error("Error adding ICE candidate:", e);
+      } catch (err) {
+        console.error("Error adding ICE candidate:", err);
       }
     }
   });
 
-  // Capture browser screenshots and feed them to the WebRTC track
-  const intervalId = setInterval(async () => {
-    try {
-      const screenshot = await page.screenshot({ encoding: "binary" });
-      const frame = new RTCVideoFrame(screenshot, 640, 480); // 640x480 resolution
-      videoSource.onFrame(frame);
-    } catch (e) {
-      console.error("Screenshot error:", e);
-    }
-  }, 1000 / 10); // ~10 FPS
-
-  ws.on("close", async () => {
-    clearInterval(intervalId);
-    await browser.close();
-    console.log("Client disconnected, browser closed");
+  ws.on("close", () => {
+    console.log("Client disconnected");
+    pc.close();
   });
+
+  // Dummy video frames generator (black screen)
+  setInterval(() => {
+    const width = 640;
+    const height = 360;
+    const frameData = new Uint8ClampedArray(width * height * 4); // RGBA black frame
+    const frame = new RTCVideoFrame(frameData, width, height);
+    videoSource.onFrame(frame);
+  }, 1000 / 30); // 30 FPS
 });
