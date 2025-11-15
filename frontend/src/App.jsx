@@ -1,5 +1,4 @@
-// frontend/src/App.jsx
-import React, { useEffect, useRef } from "react";
+import React, { useRef } from "react";
 import Particles from "react-tsparticles";
 import { loadFull } from "tsparticles";
 
@@ -10,12 +9,6 @@ export default function App() {
   const particlesInit = async (engine) => {
     await loadFull(engine);
   };
-
-  // Placeholder WebRTC setup (optional, won't break the UI)
-  useEffect(() => {
-    // WebSocket / WebRTC logic can go here later
-    // For now, just a placeholder to avoid breaking the video element
-  }, []);
 
   return (
     <div
@@ -83,3 +76,4 @@ export default function App() {
     </div>
   );
 }
+
