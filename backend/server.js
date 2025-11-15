@@ -1,21 +1,20 @@
 // backend/server.js
-import express from "express";
-import { WebSocketServer } from "ws";
-import wrtc from "wrtc";
+import http from "http";
+import WebSocket, { WebSocketServer } from "ws";
+import pkg from "wrtc";
 
-const { RTCPeerConnection } = wrtc;
-const { RTCVideoSource, RTCVideoFrame } = wrtc.nonstandard;
+const { RTCPeerConnection, nonstandard: { RTCVideoSource, RTCVideoFrame } } = pkg;
 
-const app = express();
 const HTTP_PORT = 3000;
 const WS_PORT = 3001;
 
-// Serve a simple message on HTTP
-app.get("/", (req, res) => {
-  res.send("BlueProxy WebRTC Backend is running!");
+// Simple HTTP server (optional, can serve frontend if needed)
+const server = http.createServer((req, res) => {
+  res.writeHead(200);
+  res.end("BlueProxy Backend is running");
 });
 
-app.listen(HTTP_PORT, () => {
+server.listen(HTTP_PORT, () => {
   console.log(`HTTP server running on http://localhost:${HTTP_PORT}`);
 });
 
@@ -26,23 +25,31 @@ console.log(`WebSocket server running on ws://localhost:${WS_PORT}`);
 wss.on("connection", (ws) => {
   console.log("Client connected via WebSocket");
 
-  // Create PeerConnection
+  // Create WebRTC PeerConnection
   const pc = new RTCPeerConnection();
 
-  // Create a dummy video track
+  // Create a video track with a placeholder black frame
   const videoSource = new RTCVideoSource();
-  const track = videoSource.createTrack();
-  pc.addTrack(track);
+  const videoTrack = videoSource.createTrack();
+  pc.addTrack(videoTrack);
 
-  // Send ICE candidates to client
+  // Generate a simple black frame every 40ms (~25fps)
+  const width = 640;
+  const height = 480;
+  const frameData = new Uint8ClampedArray(width * height * 4); // all 0 = black
+  const sendFrame = () => {
+    const frame = new RTCVideoFrame(frameData, width, height);
+    videoSource.onFrame(frame);
+  };
+  const interval = setInterval(sendFrame, 40);
+
   pc.onicecandidate = ({ candidate }) => {
     if (candidate) {
       ws.send(JSON.stringify({ type: "ice", candidate }));
     }
   };
 
-  // Handle incoming messages from client
-  ws.on("message", async (msg) => {
+  ws.onmessage = async (msg) => {
     const data = JSON.parse(msg.toString());
 
     if (data.type === "offer") {
@@ -57,14 +64,11 @@ wss.on("connection", (ws) => {
         console.error("Error adding ICE candidate:", err);
       }
     }
-  });
+  };
 
-  // Send dummy video frames every 33ms (~30fps)
-  setInterval(() => {
-    const width = 640;
-    const height = 480;
-    const frameData = new Uint8ClampedArray(width * height * 4); // black frame
-    const frame = new RTCVideoFrame(frameData, width, height);
-    videoSource.onFrame(frame);
-  }, 33);
+  ws.on("close", () => {
+    clearInterval(interval);
+    pc.close();
+    console.log("Client disconnected");
+  });
 });
