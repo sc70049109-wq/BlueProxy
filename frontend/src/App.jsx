@@ -18,7 +18,7 @@ function App() {
     setProxiedUrl(proxied);
   };
 
-  // Simple particle effect
+  // Particle effect
   useEffect(() => {
     const canvas = document.getElementById("particles");
     const ctx = canvas.getContext("2d");
@@ -77,8 +77,8 @@ function App() {
           className="relative w-full h-full border-none z-10"
         />
       ) : (
-        <div className="relative z-10 flex flex-col justify-end h-full pb-20 items-center text-white">
-          <h1 className="text-5xl font-bold mb-6 drop-shadow-lg">Blue Proxy</h1>
+        <div className="relative z-10 flex flex-col justify-center items-center h-full text-white">
+          <h1 className="text-6xl font-bold mb-8 drop-shadow-lg">Blue Proxy</h1>
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -107,3 +107,4 @@ function App() {
 }
 
 export default App;
+
