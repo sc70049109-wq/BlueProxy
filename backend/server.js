@@ -3,24 +3,25 @@ import express from "express";
 import { WebSocketServer } from "ws";
 import wrtc from "wrtc";
 
-const { RTCPeerConnection, RTCVideoSource, RTCVideoFrame } = wrtc;
+const { RTCPeerConnection } = wrtc;
+const { RTCVideoSource, RTCVideoFrame } = wrtc.nonstandard;
 
 const app = express();
 const HTTP_PORT = 3000;
 const WS_PORT = 3001;
 
-// Serve static files if needed
-app.use(express.static("../frontend"));
+// Serve a simple message on HTTP
+app.get("/", (req, res) => {
+  res.send("BlueProxy WebRTC Backend is running!");
+});
 
-// Start HTTP server
 app.listen(HTTP_PORT, () => {
   console.log(`HTTP server running on http://localhost:${HTTP_PORT}`);
 });
 
-// Start WebSocket server
-const wss = new WebSocketServer({ port: WS_PORT }, () => {
-  console.log(`WebSocket server running on ws://localhost:${WS_PORT}`);
-});
+// WebSocket server
+const wss = new WebSocketServer({ port: WS_PORT });
+console.log(`WebSocket server running on ws://localhost:${WS_PORT}`);
 
 wss.on("connection", (ws) => {
   console.log("Client connected via WebSocket");
@@ -28,28 +29,28 @@ wss.on("connection", (ws) => {
   // Create PeerConnection
   const pc = new RTCPeerConnection();
 
-  // Create a video source and track
+  // Create a dummy video track
   const videoSource = new RTCVideoSource();
   const track = videoSource.createTrack();
   pc.addTrack(track);
 
   // Send ICE candidates to client
   pc.onicecandidate = ({ candidate }) => {
-    if (candidate) ws.send(JSON.stringify({ type: "candidate", candidate }));
+    if (candidate) {
+      ws.send(JSON.stringify({ type: "ice", candidate }));
+    }
   };
 
   // Handle incoming messages from client
-  ws.on("message", async (message) => {
-    const data = JSON.parse(message.toString());
+  ws.on("message", async (msg) => {
+    const data = JSON.parse(msg.toString());
 
     if (data.type === "offer") {
-      await pc.setRemoteDescription(data.offer);
+      await pc.setRemoteDescription(data);
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      ws.send(JSON.stringify({ type: "answer", answer }));
-    }
-
-    if (data.type === "candidate") {
+      ws.send(JSON.stringify(pc.localDescription));
+    } else if (data.type === "ice") {
       try {
         await pc.addIceCandidate(data.candidate);
       } catch (err) {
@@ -58,17 +59,12 @@ wss.on("connection", (ws) => {
     }
   });
 
-  ws.on("close", () => {
-    console.log("Client disconnected");
-    pc.close();
-  });
-
-  // Dummy video frames generator (black screen)
+  // Send dummy video frames every 33ms (~30fps)
   setInterval(() => {
     const width = 640;
-    const height = 360;
-    const frameData = new Uint8ClampedArray(width * height * 4); // RGBA black frame
+    const height = 480;
+    const frameData = new Uint8ClampedArray(width * height * 4); // black frame
     const frame = new RTCVideoFrame(frameData, width, height);
     videoSource.onFrame(frame);
-  }, 1000 / 30); // 30 FPS
+  }, 33);
 });
