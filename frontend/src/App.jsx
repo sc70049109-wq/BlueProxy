@@ -1,4 +1,5 @@
-import React, { useRef, useEffect } from "react";
+// frontend/src/App.jsx
+import React, { useEffect, useRef, useCallback, useState } from "react";
 import Particles from "react-tsparticles";
 import { loadFull } from "tsparticles";
 
@@ -6,64 +7,83 @@ export default function App() {
   const videoRef = useRef(null);
   const wsRef = useRef(null);
   const pcRef = useRef(null);
+  const [connected, setConnected] = useState(false);
 
-  const particlesInit = async (engine) => {
+  // Particles init
+  const particlesInit = useCallback(async (engine) => {
     await loadFull(engine);
-  };
+  }, []);
 
   useEffect(() => {
+    // Setup WebSocket signaling
     const ws = new WebSocket("ws://localhost:3001");
     wsRef.current = ws;
 
-    const pc = new RTCPeerConnection();
-    pcRef.current = pc;
-
-    pc.ontrack = (event) => {
-      videoRef.current.srcObject = event.streams[0];
-    };
-
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        ws.send(JSON.stringify({ type: "candidate", candidate: event.candidate }));
-      }
-    };
-
-    ws.onmessage = async (event) => {
-      const data = JSON.parse(event.data);
+    ws.onopen = () => console.log("Connected to WebSocket");
+    ws.onmessage = async (message) => {
+      const data = JSON.parse(message.data);
 
       if (data.type === "answer") {
-        await pc.setRemoteDescription(data.answer);
+        await pcRef.current.setRemoteDescription(data.answer);
+        setConnected(true);
       }
 
       if (data.type === "candidate") {
         try {
-          await pc.addIceCandidate(data.candidate);
+          await pcRef.current.addIceCandidate(data.candidate);
         } catch (e) {
-          console.error("Error adding candidate", e);
+          console.error(e);
         }
       }
     };
 
-    const initWebRTC = async () => {
+    // Setup WebRTC PeerConnection
+    const pc = new RTCPeerConnection();
+    pcRef.current = pc;
+
+    // Receive video track from backend
+    pc.ontrack = (event) => {
+      if (videoRef.current) {
+        videoRef.current.srcObject = event.streams[0];
+      }
+    };
+
+    // Send ICE candidates to backend
+    pc.onicecandidate = ({ candidate }) => {
+      if (candidate) ws.send(JSON.stringify({ type: "candidate", candidate }));
+    };
+
+    // Create dummy data channel to trigger connection
+    pc.createDataChannel("blueproxy");
+
+    // Create offer
+    (async () => {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       ws.send(JSON.stringify({ type: "offer", offer }));
-    };
+    })();
 
-    initWebRTC();
+    return () => {
+      ws.close();
+      pc.close();
+    };
   }, []);
 
   return (
     <div
       style={{
+        width: "100vw",
         height: "100vh",
-        background: "linear-gradient(135deg, #1a1a1a, #0d0d0d)",
-        color: "white",
-        overflow: "hidden",
-        position: "relative",
+        background: "linear-gradient(to right, #0f2027, #203a43, #2c5364)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "flex-start",
         paddingTop: "20px",
+        color: "white",
       }}
     >
+      {/* Particles background */}
       <Particles
         id="tsparticles"
         init={particlesInit}
@@ -71,47 +91,67 @@ export default function App() {
           background: { color: { value: "transparent" } },
           fpsLimit: 60,
           particles: {
-            number: { value: 50 },
             color: { value: "#ffffff" },
-            links: { enable: true, color: "#ffffff" },
-            move: { enable: true, speed: 2 },
-            size: { value: 3 },
+            links: { enable: true, distance: 150, color: "#ffffff", opacity: 0.4, width: 1 },
+            collisions: { enable: true },
+            move: { enable: true, speed: 2, direction: "none", random: false, straight: false, outModes: { default: "bounce" }, attract: { enable: false } },
+            number: { density: { enable: true, area: 800 }, value: 80 },
+            opacity: { value: 0.5 },
+            shape: { type: "circle" },
+            size: { value: { min: 1, max: 5 } }
           },
+          detectRetina: true
+        }}
+        style={{ position: "absolute", top: 0, left: 0, zIndex: 0 }}
+      />
+
+      {/* Header */}
+      <h1 style={{ zIndex: 1 }}>🌐 BlueProxy WebRTC</h1>
+
+      {/* Video from backend */}
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        style={{
+          width: "70%",
+          maxWidth: "800px",
+          border: "3px solid white",
+          borderRadius: "12px",
+          margin: "20px 0",
+          zIndex: 1,
         }}
       />
 
-      <h1 style={{ textAlign: "center" }}>🌐 BlueProxy WebRTC</h1>
-
-      <div style={{ display: "flex", justifyContent: "center", marginTop: "50px" }}>
-        <video
-          ref={videoRef}
-          style={{
-            width: "80%",
-            maxHeight: "400px",
-            borderRadius: "20px",
-            boxShadow: "0 0 20px rgba(0,0,0,0.5)",
-            background: "linear-gradient(90deg, #222, #111)",
-            objectFit: "cover",
-          }}
-          autoPlay
-          playsInline
-          muted
-        />
-      </div>
-
+      {/* Cards */}
       <div
         style={{
           display: "flex",
-          justifyContent: "center",
-          flexWrap: "wrap",
-          marginTop: "50px",
           gap: "20px",
+          zIndex: 1,
+          flexWrap: "wrap",
+          justifyContent: "center",
         }}
       >
-        <div style={{ width: "150px", height: "150px", background: "#333", borderRadius: "15px" }} />
-        <div style={{ width: "150px", height: "150px", background: "#444", borderRadius: "15px" }} />
-        <div style={{ width: "150px", height: "150px", background: "#555", borderRadius: "15px" }} />
+        <div style={{ background: "rgba(255,255,255,0.1)", padding: "20px", borderRadius: "12px", minWidth: "150px" }}>
+          <h2>⚡ Card 1</h2>
+          <p>Some info</p>
+        </div>
+        <div style={{ background: "rgba(255,255,255,0.1)", padding: "20px", borderRadius: "12px", minWidth: "150px" }}>
+          <h2>🔥 Card 2</h2>
+          <p>More info</p>
+        </div>
+        <div style={{ background: "rgba(255,255,255,0.1)", padding: "20px", borderRadius: "12px", minWidth: "150px" }}>
+          <h2>💎 Card 3</h2>
+          <p>Even more info</p>
+        </div>
       </div>
+
+      {/* Connection status */}
+      <p style={{ marginTop: "20px", zIndex: 1 }}>
+        {connected ? "🟢 Connected to backend" : "🔴 Connecting..."}
+      </p>
     </div>
   );
 }
