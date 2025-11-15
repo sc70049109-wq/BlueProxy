@@ -1,37 +1,16 @@
 // frontend/src/App.jsx
 import React, { useRef, useEffect } from "react";
 import Particles from "@tsparticles/react";
-import { tsParticles } from "tsparticles";
+import { loadFull } from "tsparticles";
 
 export default function App() {
   const videoRef = useRef(null);
   const wsRef = useRef(null);
   const pcRef = useRef(null);
 
-  // Initialize particles
-  const particlesInit = async () => {
-    await tsParticles.load("tsparticles", {
-      background: { color: { value: "#0f0f0f" } },
-      fpsLimit: 60,
-      interactivity: {
-        events: {
-          onClick: { enable: true, mode: "push" },
-          onHover: { enable: true, mode: "repulse" },
-          resize: true,
-        },
-      },
-      particles: {
-        color: { value: "#ffffff" },
-        links: { enable: true, color: "#ffffff", distance: 150 },
-        collisions: { enable: true },
-        move: { enable: true, speed: 2 },
-        number: { value: 50 },
-        opacity: { value: 0.5 },
-        shape: { type: "circle" },
-        size: { value: { min: 1, max: 5 } },
-      },
-      detectRetina: true,
-    });
+  // Initialize particles engine
+  const particlesInit = async (engine) => {
+    await loadFull(engine); // this is correct for the latest tsparticles
   };
 
   useEffect(() => {
@@ -53,7 +32,9 @@ export default function App() {
 
     ws.onopen = async () => {
       console.log("WebSocket connected");
-      pc.createDataChannel("blueproxy"); // optional
+
+      // Optional data channel
+      pc.createDataChannel("blueproxy");
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
@@ -62,9 +43,8 @@ export default function App() {
 
     ws.onmessage = async (message) => {
       const data = JSON.parse(message.data);
-      if (data.type === "answer") {
-        await pc.setRemoteDescription(data);
-      } else if (data.type === "ice") {
+      if (data.type === "answer") await pc.setRemoteDescription(data);
+      else if (data.type === "ice") {
         try {
           await pc.addIceCandidate(data.candidate);
         } catch (err) {
@@ -81,14 +61,34 @@ export default function App() {
 
   return (
     <div style={{ width: "100vw", height: "100vh", position: "relative" }}>
-      {/* Particles background */}
       <Particles
         id="tsparticles"
         init={particlesInit}
-        style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}
+        options={{
+          background: { color: { value: "#0f0f0f" } },
+          fpsLimit: 60,
+          interactivity: {
+            events: {
+              onClick: { enable: true, mode: "push" },
+              onHover: { enable: true, mode: "repulse" },
+              resize: true,
+            },
+          },
+          particles: {
+            color: { value: "#ffffff" },
+            links: { enable: true, color: "#ffffff", distance: 150 },
+            collisions: { enable: true },
+            move: { enable: true, speed: 2 },
+            number: { value: 50 },
+            opacity: { value: 0.5 },
+            shape: { type: "circle" },
+            size: { value: { min: 1, max: 5 } },
+          },
+          detectRetina: true,
+        }}
+        style={{ position: "absolute", top: 0, left: 0 }}
       />
 
-      {/* WebRTC video */}
       <video
         ref={videoRef}
         autoPlay
