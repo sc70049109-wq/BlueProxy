@@ -1,43 +1,63 @@
-import http from "http";
+// server.js
 import express from "express";
-import httpProxy from "http-proxy";
+import http from "http";
+import WebSocket, { WebSocketServer } from "ws";
+import puppeteer from "puppeteer";
 
 const app = express();
-const proxy = httpProxy.createProxyServer({});
-const PORT = process.env.PORT || 8080;
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server });
 
-app.get("/proxy", (req, res) => {
-  const target = req.query.url;
-  if (!target) {
-    return res.status(400).send("Error: url query parameter is required, e.g. /proxy?url=https://example.com");
-  }
+app.use(express.static("frontend"));
 
-  // Proxy the request to the target
-  proxy.web(req, res, { target, changeOrigin: true }, (e) => {
-    console.error("Proxy error:", e);
-    res.status(500).send("Proxy error");
+let browser;
+
+async function startBrowser() {
+  browser = await puppeteer.launch({
+    headless: true,
+    args: [
+      "--use-fake-ui-for-media-stream",
+      "--enable-usermedia-screen-capturing",
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--enable-audio"
+    ]
+  });
+}
+
+startBrowser();
+
+wss.on("connection", async (ws) => {
+  console.log("New client connected");
+
+  // Launch a new page per connection
+  const page = await browser.newPage();
+
+  // Serve a blank page
+  await page.goto("about:blank");
+
+  // Setup a simple WebRTC adapter
+  ws.on("message", async (msg) => {
+    const data = JSON.parse(msg);
+
+    if (data.type === "offer") {
+      const offer = data.offer;
+
+      // Here you would integrate a WebRTC library to handle Puppeteer stream
+      // For simplicity, echo back (you can expand with wrtc or similar)
+      ws.send(JSON.stringify({ type: "answer", answer: offer }));
+    }
+
+    if (data.type === "ice-candidate") {
+      // handle ICE candidates if needed
+    }
+  });
+
+  ws.on("close", async () => {
+    await page.close();
+    console.log("Client disconnected");
   });
 });
 
-// For everything else, return 404 or something
-app.all("*", (req, res) => {
-  res.status(404).send("Not found");
-});
-
-// Start server
-const server = http.createServer(app);
-server.listen(PORT, () => {
-  console.log(`BlueProxy server running on http://localhost:${PORT}`);
-});
-
-proxy.on("error", (err, req, res) => {
-  console.error("Proxy server error:", err);
-  try {
-    res.writeHead(500, { "Content-Type": "text/plain" });
-    res.end("Something went wrong in proxy.");
-  } catch (e) {
-    console.error("Error sending proxy failure:", e);
-  }
-});
-
-
+const PORT = 3000;
+server.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
