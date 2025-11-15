@@ -1,35 +1,35 @@
 // backend/server.js
 import express from "express";
-import { createProxyMiddleware } from "http-proxy-middleware";
-import cors from "cors";
+import puppeteer from "puppeteer";
 
 const app = express();
 const PORT = 8080;
 
-// Enable CORS if needed
-app.use(cors());
-
-// Simple API to encode URL
-app.get("/proxy", (req, res) => {
+app.get("/r", async (req, res) => {
   const { url } = req.query;
-  if (!url) return res.status(400).send("Missing 'url' query param");
-  res.redirect(`/r/${encodeURIComponent(url)}`);
+  if (!url) return res.status(400).send("Missing `url` parameter");
+
+  let browser;
+  try {
+    browser = await puppeteer.launch({
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+    const page = await browser.newPage();
+    await page.goto(url, { waitUntil: "networkidle2" });
+
+    // Get full HTML after JS execution:
+    const html = await page.content();
+    res.set("Content-Type", "text/html");
+    res.send(html);
+  } catch (err) {
+    console.error("Puppeteer error:", err);
+    res.status(500).send("Error proxying page");
+  } finally {
+    if (browser) await browser.close();
+  }
 });
 
-// Proxy route
-app.use("/r/:url(*)", (req, res, next) => {
-  const targetUrl = decodeURIComponent(req.params.url);
-
-  // Use http-proxy-middleware
-  createProxyMiddleware({
-    target: targetUrl,
-    changeOrigin: true,
-    selfHandleResponse: false, // Let the proxy handle streaming
-    secure: false,
-  })(req, res, next);
-});
-
-// Start server
 app.listen(PORT, () => {
-  console.log(`BlueProxy backend running at http://localhost:${PORT}`);
+  console.log(`BlueProxy Puppeteer server at http://localhost:${PORT}`);
 });
+
