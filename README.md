@@ -1,156 +1,136 @@
-# BlueProxy
+# 🌐 BlueProxy WebRTC 🎧🎥
 
-A simple blue-themed web proxy with a frontend (React + Vite) and backend (Node.js + Express).  
-This guide explains how to install and run it on a Linux machine.
+Welcome to **BlueProxy WebRTC** — a super sleek remote browser experience **with audio and video** using **WebRTC**, no VNC! 🚀
 
----
-
-## 📦 Clone the Repository
-
-```bash
-git clone https://github.com/sc70049109-wq/BlueProxy.git
-cd BlueProxy
-```
+Experience:  
+- 🔥 Dark gradient + moving particles UI  
+- 🖼️ Custom image/card layout  
+- 🎶 Full audio support  
+- 🎬 Headless Chrome / Puppeteer backend  
+- 🌍 Stream directly to your browser  
 
 ---
 
-## 🖥️ Backend Setup (Node.js + Express)
+## 📦 Prerequisites
 
-### 1. Install Node.js
+Before running the project, make sure you have:
 
-If you don't have Node.js installed:
+- **Node.js** v18+  
+- **npm** (comes with Node.js)  
+- **Chrome/Chromium** (optional; Puppeteer downloads its own)  
+- **FFmpeg** (optional, for audio handling)  
 
+### **Ubuntu / Debian**
 ```bash
 sudo apt update
-sudo apt install nodejs npm -y
+sudo apt install -y wget curl ffmpeg libnss3 libxss1 libasound2
 ```
 
-Or install a newer version:
+### **Windows**
+- Install Chrome/Chromium  
+- Optional: install FFmpeg and add it to PATH  
+
+---
+
+## ⚙️ Installation
+
+Clone this repo and install dependencies:
 
 ```bash
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs
+git clone https://github.com/yourusername/blueproxy-webrtc.git
+cd blueproxy-webrtc
+
+# Initialize package.json if not present
+npm init -y
+
+# Install backend dependencies
+npm install express ws puppeteer
+
+# Install frontend dependencies
+npm install react react-dom vite
 ```
 
-### 2. Install backend dependencies
+---
 
-```bash
-cd backend
-cd backend
-npm install express puppeteer
-npm install express node-fetch@3.3.2 cheerio
-npm install
-```
+## 🖥️ Running the Project
 
-### 3. Start the proxy server
-
+### **1. Start the Backend**
 ```bash
 node server.js
 ```
 
-Backend runs on **http://localhost:8080** by default.
+This will:  
+- Launch **headless Chrome**  
+- Open a new page for each WebRTC session  
+- Start a **WebSocket signaling server**  
 
 ---
 
-## 🎨 Frontend Setup (React + Vite)
-
-Open a new terminal window and run:
-
+### **2. Start the Frontend**
 ```bash
-cd frontend
-npm install -D tailwindcss postcss autoprefixer
-npx tailwindcss init -p
-npm install
+npx vite
 ```
 
-### 1. Start the frontend dev server
+Open your browser at the address Vite provides (usually `http://localhost:5173`)  
 
-```bash
-npm run dev
-```
-
-Vite will show something like:
-
-```
-http://localhost:5173/
-```
-
-Open that URL in your browser.
+Your UI will show:  
+- Dark gradient background with moving particles ✨  
+- Your images/cards layout  
+- The **remote browser stream** via WebRTC  
 
 ---
 
-## 🔗 Connecting Frontend and Backend
-
-The frontend is already configured to proxy `/r/*` requests to the backend.
-
-If running in production, update your API endpoint in:
+## 🔧 File Structure
 
 ```
-frontend/src/App.jsx
-```
-
-Change:
-
-```js
-const PROXY_BASE = "http://localhost:8080/r/";
+blueproxy-webrtc/
+├─ frontend/
+│  ├─ app.jsx          # Main React frontend (particles + images + video)
+│  └─ index.html
+├─ server.js           # Backend WebSocket + Puppeteer server
+├─ package.json
+└─ README.md
 ```
 
 ---
 
-## 🏗️ Build Frontend (Optional)
+## 💻 Usage Notes
 
-To generate a production build:
-
-```bash
-cd frontend
-npm run build
-```
-
-Files will be in:
-
-```
-frontend/dist/
-```
-
-You can serve them using:
-
-```bash
-npm install -g serve
-serve -s dist
-```
+- WebRTC handles both **audio and video** automatically  
+- Change your UI in `app.jsx` (layout, particles, images)  
+- Change signaling or Puppeteer options in `server.js` if needed  
+- All other files are **mostly plug-and-play**  
 
 ---
 
-## 📚 Project Structure
+## 🎨 Cool Features
 
-```
-BlueProxy/
- ├── backend/
- │    ├── server.js
- │    └── package.json
- ├── frontend/
- │    ├── src/
- │    ├── index.html
- │    └── package.json
- └── README.md
-```
+- Dark gradient + particles background 🌌  
+- Minimal, modern card layout 🖼️  
+- Fully reactive React frontend ⚡  
+- Audio streaming from the headless browser 🎧  
+- Easy to customize, drop-in ready 🔥  
 
 ---
 
-## 🛠️ Notes / Limitations
+## 🛠️ Troubleshooting
 
-- Audio is disabled by injecting a mute script unless "Enable Audio" is checked.
-- Some websites may break due to CSP headers or heavy JS.
-- This is a lightweight proxy and not a security tool.
-
----
-
-## 💬 Support
-
-Feel free to open issues or pull requests on GitHub:
-
-👉 https://github.com/sc70049109-wq/BlueProxy
+- ❌ Puppeteer errors: make sure your system has **libnss3, libxss1, libasound2** installed  
+- ❌ Audio not working: check Chrome permissions & your system audio settings  
+- ❌ Port conflicts: change backend port in `server.js`  
 
 ---
 
-Enjoy using **BlueProxy**! 🚀
+## ✨ Contributing
+
+Pull requests are welcome!  
+- Improve particles effects  
+- Add new UI themes  
+- Enhance audio/video performance  
+
+---
+
+## 📜 License
+
+MIT License
+
