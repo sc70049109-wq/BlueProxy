@@ -23,6 +23,12 @@ Before running the project, make sure you have:
 ### **Ubuntu / Debian**
 ```bash
 sudo apt update
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.6/install.sh | bash
+export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+nvm install 22
+nvm use 22
+node -v  # should show v22.x.x
 sudo apt install -y libnss3 libxss1 ffmpeg alsa-utils pulseaudio libasound2-plugins
 sudo apt update
 sudo apt install -y build-essential python3 libnss3 libxss1 libasound2-dev libatk1.0-0 libatk-bridge2.0-0 libcups2 libx11-xcb1 libxcomposite1 libxdamage1 libxrandr2 libgbm-dev
