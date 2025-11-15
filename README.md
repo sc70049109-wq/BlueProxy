@@ -40,6 +40,12 @@ Clone this repo and install dependencies:
 git clone https://github.com/sc70049109-wq/blueproxy
 cd blueproxy
 
+# Install node-pre-gyp globally
+npm install -g node-pre-gyp
+
+# Or install as a dev dependency in your project
+npm install node-pre-gyp --save-dev
+
 # Install backend dependencies
 npm install express ws puppeteer wrtc
 
