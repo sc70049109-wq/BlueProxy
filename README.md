@@ -57,6 +57,8 @@ Open a new terminal window and run:
 
 ```bash
 cd frontend
+npm install -D tailwindcss postcss autoprefixer
+npx tailwindcss init -p
 npm install
 ```
 
