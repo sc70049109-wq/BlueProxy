@@ -14,41 +14,50 @@ export default function App() {
   };
 
   useEffect(() => {
-    const ws = new WebSocket("ws://localhost:3001"); // must match backend
+    // Connect to backend WebSocket
+    const ws = new WebSocket("ws://localhost:3001");
     wsRef.current = ws;
 
     const pc = new RTCPeerConnection();
     pcRef.current = pc;
 
+    // Display incoming video track
     pc.ontrack = (event) => {
       if (videoRef.current) {
         videoRef.current.srcObject = event.streams[0];
       }
     };
 
+    // Send ICE candidates to server
     pc.onicecandidate = ({ candidate }) => {
-      if (candidate) ws.send(JSON.stringify({ type: "ice", candidate }));
+      if (candidate) {
+        ws.send(JSON.stringify({ type: "ice", candidate }));
+      }
     };
 
     ws.onopen = async () => {
       console.log("WebSocket connected");
+
+      // Optional data channel
       pc.createDataChannel("blueproxy");
+
+      // Create offer and send to server
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       ws.send(JSON.stringify(offer));
     };
 
-    ws.onmessage = async (message) => {
-      const data = JSON.parse(message.data);
+    ws.onmessage = async (event) => {
+      try {
+        const data = JSON.parse(event.data);
 
-      if (data.type === "answer") {
-        await pc.setRemoteDescription(data);
-      } else if (data.type === "ice") {
-        try {
+        if (data.type === "answer") {
+          await pc.setRemoteDescription(data);
+        } else if (data.type === "ice") {
           await pc.addIceCandidate(data.candidate);
-        } catch (err) {
-          console.error("Error adding ICE candidate:", err);
         }
+      } catch (err) {
+        console.error("Invalid message received:", event.data, err);
       }
     };
 
