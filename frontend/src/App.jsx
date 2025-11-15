@@ -1,3 +1,4 @@
+// src/App.jsx
 import React, { useEffect, useRef } from "react";
 import Particles from "react-tsparticles";
 import { loadFull } from "tsparticles";
@@ -7,13 +8,15 @@ export default function App() {
   let pc;
   let ws;
 
+  // Initialize WebSocket and WebRTC safely
   useEffect(() => {
     ws = new WebSocket("ws://localhost:3000");
 
-    pc = new RTCPeerConnection();
+    ws.onopen = () => {
+      console.log("WebSocket connected");
 
-    pc.ontrack = (event) => {
-      videoRef.current.srcObject = event.streams[0];
+      // Initialize WebRTC after WS opens
+      initWebRTC();
     };
 
     ws.onmessage = async (msg) => {
@@ -23,17 +26,22 @@ export default function App() {
       }
     };
 
-    async function initWebRTC() {
+    pc = new RTCPeerConnection();
+
+    pc.ontrack = (event) => {
+      videoRef.current.srcObject = event.streams[0];
+    };
+
+    const initWebRTC = async () => {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       ws.send(JSON.stringify({ type: "offer", offer }));
-    }
-
-    initWebRTC();
+    };
   }, []);
 
-  const particlesInit = async (main) => {
-    await loadFull(main);
+  // Initialize particles
+  const particlesInit = async (engine) => {
+    await loadFull(engine);
   };
 
   return (
@@ -63,7 +71,9 @@ export default function App() {
       />
 
       {/* Header */}
-      <h1 style={{ textAlign: "center", paddingTop: "20px" }}>🌐 BlueProxy WebRTC</h1>
+      <h1 style={{ textAlign: "center", paddingTop: "20px" }}>
+        🌐 BlueProxy WebRTC
+      </h1>
 
       {/* Video Stream */}
       <div style={{ display: "flex", justifyContent: "center", marginTop: "50px" }}>
@@ -75,6 +85,7 @@ export default function App() {
             width: "80%",
             borderRadius: "20px",
             boxShadow: "0 0 20px rgba(0,0,0,0.5)",
+            backgroundColor: "#000", // placeholder black
           }}
         />
       </div>
@@ -96,4 +107,3 @@ export default function App() {
     </div>
   );
 }
-
