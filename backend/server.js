@@ -1,63 +1,77 @@
-// server.js
+// backend/server.js
 import express from "express";
-import http from "http";
-import WebSocket, { WebSocketServer } from "ws";
+import { WebSocketServer } from "ws";
 import puppeteer from "puppeteer";
 
 const app = express();
-const server = http.createServer(app);
-const wss = new WebSocketServer({ server });
+const HTTP_PORT = 3000;
+const WS_PORT = 3001;
 
-app.use(express.static("frontend"));
+// Serve frontend (optional, if you build frontend later)
+app.use(express.static("../frontend/dist"));
 
-let browser;
+app.get("/", (req, res) => {
+  res.send("BlueProxy WebRTC Backend Running!");
+});
 
-async function startBrowser() {
-  browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      "--use-fake-ui-for-media-stream",
-      "--enable-usermedia-screen-capturing",
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--enable-audio"
-    ]
-  });
-}
+app.listen(HTTP_PORT, () => {
+  console.log(`HTTP server running on http://localhost:${HTTP_PORT}`);
+});
 
-startBrowser();
+// WebSocket signaling
+const wss = new WebSocketServer({ port: WS_PORT });
 
 wss.on("connection", async (ws) => {
-  console.log("New client connected");
+  console.log("Client connected via WebSocket");
 
-  // Launch a new page per connection
+  // Launch Puppeteer headless browser
+  const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
   const page = await browser.newPage();
+  await page.goto("about:blank"); // placeholder page
 
-  // Serve a blank page
-  await page.goto("about:blank");
+  // Expose a function in Puppeteer to send WebRTC SDP candidates back
+  await page.exposeFunction("sendCandidate", (candidate) => {
+    ws.send(JSON.stringify({ type: "candidate", candidate }));
+  });
 
-  // Setup a simple WebRTC adapter
+  // Initialize a WebRTC peer connection inside the page
+  await page.evaluate(() => {
+    const pc = new RTCPeerConnection();
+
+    // Capture page media (e.g., video element or canvas)
+    navigator.mediaDevices.getDisplayMedia({ video: true, audio: true })
+      .then((stream) => {
+        stream.getTracks().forEach(track => pc.addTrack(track, stream));
+      });
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        window.sendCandidate(event.candidate);
+      }
+    };
+
+    window.pc = pc;
+  });
+
   ws.on("message", async (msg) => {
-    const data = JSON.parse(msg);
+    const data = JSON.parse(msg.toString());
 
     if (data.type === "offer") {
-      const offer = data.offer;
+      // Forward offer to Puppeteer page and get answer
+      const answer = await page.evaluate(async (offer) => {
+        const pc = window.pc;
+        await pc.setRemoteDescription(offer);
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        return pc.localDescription;
+      }, data.offer);
 
-      // Here you would integrate a WebRTC library to handle Puppeteer stream
-      // For simplicity, echo back (you can expand with wrtc or similar)
-      ws.send(JSON.stringify({ type: "answer", answer: offer }));
-    }
-
-    if (data.type === "ice-candidate") {
-      // handle ICE candidates if needed
+      ws.send(JSON.stringify({ type: "answer", answer }));
     }
   });
 
   ws.on("close", async () => {
-    await page.close();
-    console.log("Client disconnected");
+    await browser.close();
+    console.log("Client disconnected, browser closed");
   });
 });
-
-const PORT = 3000;
-server.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
