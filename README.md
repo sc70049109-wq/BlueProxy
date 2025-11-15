@@ -40,9 +40,6 @@ Clone this repo and install dependencies:
 git clone https://github.com/sc70049109-wq/blueproxy
 cd blueproxy
 
-# Initialize package.json if not present
-npm init -y
-
 # Install backend dependencies
 npm install express ws puppeteer wrtc
 
