@@ -1,18 +1,27 @@
+// backend/server.js
 import express from "express";
 import { WebSocketServer } from "ws";
 import puppeteer from "puppeteer";
-import { RTCPeerConnection, RTCVideoSource, RTCVideoFrame } from "wrtc";
+import wrtc from "wrtc"; // ✅ Option 1: default import
+
+const { RTCPeerConnection, RTCVideoSource, RTCVideoFrame } = wrtc;
 
 const app = express();
 const HTTP_PORT = 3000;
 const WS_PORT = 3001;
 
+// Serve frontend (optional, if you build frontend later)
 app.use(express.static("../frontend/dist"));
+
+app.get("/", (req, res) => {
+  res.send("BlueProxy WebRTC Backend Running!");
+});
 
 app.listen(HTTP_PORT, () => {
   console.log(`HTTP server running on http://localhost:${HTTP_PORT}`);
 });
 
+// WebSocket signaling server
 const wss = new WebSocketServer({ port: WS_PORT });
 
 wss.on("connection", async (ws) => {
@@ -23,13 +32,13 @@ wss.on("connection", async (ws) => {
   const page = await browser.newPage();
   await page.goto("https://example.com"); // page to stream
 
-  // Create WebRTC peer
+  // Create WebRTC peer connection
   const pc = new RTCPeerConnection();
-  const source = new RTCVideoSource();
-  const track = source.createTrack();
+  const videoSource = new RTCVideoSource();
+  const track = videoSource.createTrack();
   pc.addTrack(track);
 
-  // Send ICE candidates
+  // Send ICE candidates to frontend
   pc.onicecandidate = ({ candidate }) => {
     if (candidate) ws.send(JSON.stringify({ type: "candidate", candidate }));
   };
@@ -45,19 +54,27 @@ wss.on("connection", async (ws) => {
     }
 
     if (data.type === "candidate") {
-      try { await pc.addIceCandidate(data.candidate); } catch (e) {}
+      try {
+        await pc.addIceCandidate(data.candidate);
+      } catch (e) {
+        console.error("Error adding ICE candidate:", e);
+      }
     }
   });
 
-  // Capture Puppeteer screenshots and feed to WebRTC track
-  setInterval(async () => {
-    const screenshot = await page.screenshot({ encoding: "binary" });
-    const frame = new RTCVideoFrame(screenshot, 640, 480);
-    source.onFrame(frame);
+  // Capture browser screenshots and feed them to the WebRTC track
+  const intervalId = setInterval(async () => {
+    try {
+      const screenshot = await page.screenshot({ encoding: "binary" });
+      const frame = new RTCVideoFrame(screenshot, 640, 480); // 640x480 resolution
+      videoSource.onFrame(frame);
+    } catch (e) {
+      console.error("Screenshot error:", e);
+    }
   }, 1000 / 10); // ~10 FPS
 
   ws.on("close", async () => {
-    clearInterval();
+    clearInterval(intervalId);
     await browser.close();
     console.log("Client disconnected, browser closed");
   });
