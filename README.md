@@ -51,7 +51,7 @@ npm install express ws puppeteer wrtc
 
 # Install frontend dependencies
 npm install react react-dom vite
-npm install react-tsparticles tsparticles
+npm install react-tsparticles@latest tsparticles@latest
 ```
 
 ---
