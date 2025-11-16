@@ -62,7 +62,7 @@ cd
 # Install frontend dependencies
 cd frontend
 npm install react react-dom vite
-npm install react-tsparticles@2 tsparticles@2
+npm install @tsparticles/react @tsparticles/engine
 cd
 ```
 
