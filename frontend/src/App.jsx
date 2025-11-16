@@ -1,124 +1,125 @@
-import { useCallback } from "react";
+import React, { useRef, useEffect } from "react";
 import Particles from "@tsparticles/react";
 import { loadFull } from "@tsparticles/engine";
-import "./App.css";
 
-function App() {
-  const particlesInit = useCallback(async (engine) => {
+export default function App() {
+  const videoRef = useRef(null);
+  const wsRef = useRef(null);
+  const pcRef = useRef(null);
+
+  // tsParticles init
+  const particlesInit = async (engine) => {
     await loadFull(engine);
+  };
+
+  useEffect(() => {
+    const ws = new WebSocket("ws://localhost:3001");
+    wsRef.current = ws;
+
+    const pc = new RTCPeerConnection();
+    pcRef.current = pc;
+
+    pc.ontrack = (event) => {
+      if (videoRef.current) videoRef.current.srcObject = event.streams[0];
+    };
+
+    pc.onicecandidate = ({ candidate }) => {
+      if (candidate) ws.send(JSON.stringify({ type: "ice", candidate }));
+    };
+
+    ws.onopen = async () => {
+      console.log("WebSocket connected");
+      pc.createDataChannel("blueproxy");
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      ws.send(JSON.stringify(offer));
+    };
+
+    ws.onmessage = async (message) => {
+      try {
+        const data = JSON.parse(message.data);
+        if (data.type === "answer") await pc.setRemoteDescription(data);
+        else if (data.type === "ice") await pc.addIceCandidate(data.candidate);
+      } catch (err) {
+        console.error("Invalid JSON from WebSocket:", message.data);
+      }
+    };
+
+    return () => {
+      ws.close();
+      pc.close();
+    };
   }, []);
 
   return (
-    <div
-      style={{
-        height: "100vh",
-        width: "100vw",
-        background: "linear-gradient(135deg, #0a0a0f, #111827, #0f172a)",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        overflow: "hidden",
-        position: "relative",
-      }}
-    >
-      {/* PARTICLES */}
+    <div style={{ width: "100vw", height: "100vh", position: "relative", overflow: "hidden" }}>
+      {/* Particles Background */}
       <Particles
         id="tsparticles"
         init={particlesInit}
         options={{
-          background: { color: "transparent" },
-          fpsLimit: 120,
-          particles: {
-            number: { value: 80 },
-            size: { value: 2 },
-            move: { enable: true, speed: 1 },
-            opacity: { value: 0.4 },
-            links: { enable: true, color: "#3b82f6", opacity: 0.3 },
-            color: { value: "#60a5fa" },
+          background: { color: { value: "#0f0f0f" } },
+          fpsLimit: 60,
+          interactivity: {
+            events: {
+              onClick: { enable: true, mode: "push" },
+              onHover: { enable: true, mode: "repulse" },
+              resize: true,
+            },
           },
+          particles: {
+            color: { value: "#ffffff" },
+            links: { enable: true, color: "#ffffff", distance: 150 },
+            collisions: { enable: true },
+            move: { enable: true, speed: 2 },
+            number: { value: 50 },
+            opacity: { value: 0.5 },
+            shape: { type: "circle" },
+            size: { value: { min: 1, max: 5 } },
+          },
+          detectRetina: true,
         }}
+        style={{ position: "absolute", top: 0, left: 0 }}
+      />
+
+      {/* Title */}
+      <h1 style={{ position: "absolute", top: "20px", left: "50%", transform: "translateX(-50%)", color: "#00f", fontSize: "2rem" }}>
+        Blue Proxy
+      </h1>
+
+      {/* Search Bar */}
+      <input
+        type="text"
+        placeholder="Search..."
         style={{
           position: "absolute",
-          top: 0,
-          left: 0,
+          top: "70px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          padding: "10px 20px",
+          borderRadius: "8px",
+          border: "none",
+          outline: "none",
         }}
       />
 
-      {/* MAIN UI CONTENT */}
-      <div
+      {/* Video */}
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
         style={{
-          textAlign: "center",
-          zIndex: 10,
-          width: "100%",
-          maxWidth: "600px",
-          padding: "20px",
-          color: "white",
-          userSelect: "none",
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          width: "80%",
+          height: "80%",
+          borderRadius: "12px",
+          boxShadow: "0 0 20px rgba(0,0,0,0.5)",
+          backgroundColor: "#000",
         }}
-      >
-        <h1
-          style={{
-            fontSize: "3rem",
-            fontWeight: "700",
-            marginBottom: "20px",
-            textShadow: "0 0 20px #3b82f6",
-          }}
-        >
-          Blue Proxy
-        </h1>
-
-        {/* SEARCH BAR */}
-        <div
-          style={{
-            display: "flex",
-            gap: "10px",
-            background: "rgba(255,255,255,0.1)",
-            padding: "10px",
-            borderRadius: "12px",
-            backdropFilter: "blur(10px)",
-          }}
-        >
-          <input
-            id="urlInput"
-            type="text"
-            placeholder="Enter URL…"
-            style={{
-              flex: 1,
-              padding: "12px",
-              borderRadius: "8px",
-              border: "none",
-              outline: "none",
-              background: "rgba(255,255,255,0.15)",
-              color: "white",
-              fontSize: "1rem",
-            }}
-          />
-          <button
-            onClick={() => {
-              const url = document.getElementById("urlInput").value;
-              if (url.trim() !== "") {
-                alert("Navigate to backend with: " + url);
-                // TODO: send to backend
-              }
-            }}
-            style={{
-              padding: "12px 20px",
-              background: "#3b82f6",
-              color: "white",
-              border: "none",
-              borderRadius: "8px",
-              cursor: "pointer",
-              fontSize: "1rem",
-              fontWeight: "bold",
-              transition: "0.2s",
-            }}
-          >
-            Go
-          </button>
-        </div>
-      </div>
+      />
     </div>
   );
 }
-
-export default App;
